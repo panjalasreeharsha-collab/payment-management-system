@@ -8,7 +8,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
 import java.math.BigDecimal;
 import java.util.UUID;
 
@@ -35,20 +34,11 @@ public class PaymentService {
         transaction.setStatus(Transaction.TransactionStatus.PENDING);
         transactionRepository.save(transaction);
 
-        // 2. Issuer / Bank Authorization (Check Sender Balance)
+        // 2. Issuer / Bank Authorization (check Sender Balance)
         Wallet senderWallet = walletRepository.findByUserId(senderId)
                 .orElseThrow(() -> new RuntimeException("Sender wallet not found"));
         Wallet receiverWallet = walletRepository.findByUserId(receiverId)
                 .orElseThrow(() -> new RuntimeException("Receiver wallet not found"));
-
-        @Transactional
-public Wallet addFundsToWallet(Long userId, BigDecimal amount) {
-    Wallet wallet = walletRepository.findByUserId(userId)
-        .orElseThrow(() -> new RuntimeException("Wallet not found"));
-    
-    wallet.setBalance(wallet.getBalance().add(amount));
-    return walletRepository.save(wallet);
-}
 
         if (senderWallet.getBalance().compareTo(amount) < 0) {
             // Decline transaction due to insufficient funds
@@ -64,18 +54,24 @@ public Wallet addFundsToWallet(Long userId, BigDecimal amount) {
         walletRepository.save(senderWallet);
         walletRepository.save(receiverWallet);
 
-        // 4. Mark Transaction as Successful
         transaction.setStatus(Transaction.TransactionStatus.SUCCESS);
-        transactionRepository.save(transaction);
+        return transactionRepository.save(transaction);
+    }
 
-        return transaction;
+    @Transactional
+    public Wallet addFundsToWallet(Long userId, BigDecimal amount) {
+        Wallet wallet = walletRepository.findByUserId(userId)
+                .orElseThrow(() -> new RuntimeException("Wallet not found"));
+
+        wallet.setBalance(wallet.getBalance().add(amount));
+        return walletRepository.save(wallet);
     }
     public Wallet getWalletByUserId(Long userId) {
-    return walletRepository.findByUserId(userId)
-        .orElseThrow(() -> new RuntimeException("Wallet not found for user ID: " + userId));
-}
+        return walletRepository.findByUserId(userId)
+                .orElseThrow(() -> new RuntimeException("Wallet not found"));
+    }
 
-public List<Transaction> getTransactionsForUser(Long userId) {
-    return transactionRepository.findBySenderIdOrReceiverId(userId, userId);
-}
+    public java.util.List<Transaction> getTransactionsForUser(Long userId) {
+        return transactionRepository.findBySenderIdOrReceiverId(userId, userId);
+    }
 }
